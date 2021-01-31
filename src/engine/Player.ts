@@ -1,9 +1,12 @@
 import { CanvasManager } from "./CanvasManager";
 import { EsceneManager } from "./EsceneManager";
+import { Ray } from "./Ray";
 
 export class Player {
   private ctx: CanvasRenderingContext2D = new CanvasManager().getContext();
   private escene: EsceneManager;
+
+  private ray: Ray;
 
   private colorPlayer: string = "#7D07F2";
 
@@ -14,13 +17,21 @@ export class Player {
   private turn: number = 0; // 0 = still, 1 = right, -1 = left
   private rotationAngle: number = 0;
 
-  private moveSpeed: number = 3; // Pixels
-  private turnSpeed: number = 3 * (Math.PI / 180); // Degree
+  private moveSpeed: number = 1.5; // Pixels
+  private turnSpeed: number = 2.5 * (Math.PI / 180); // Degree
 
   constructor(escene: EsceneManager, x: number, y: number) {
     this.escene = escene;
     this.coorX = x;
     this.coorY = y;
+
+    this.ray = new Ray(
+      this.escene,
+      this.coorX,
+      this.coorY,
+      this.rotationAngle,
+      0
+    );
   }
 
   up(): void {
@@ -82,18 +93,22 @@ export class Player {
     // Turn
     this.rotationAngle += this.turn * this.turnSpeed;
     this.rotationAngle = this.angleNormalization(this.rotationAngle);
+
+    this.ray.setAngle(this.rotationAngle);
+    this.ray.setCoors(this.coorX, this.coorY);
   }
 
   draw(): void {
     this.update();
+    this.ray.draw();
 
     // Draw Player
     this.ctx.fillStyle = this.colorPlayer;
     this.ctx.fillRect(this.coorX - 3, this.coorY - 3, 6, 6);
 
     // Direction line
-    let xDestiny = this.coorX + Math.cos(this.rotationAngle) * 40;
-    let yDestiny = this.coorY + Math.sin(this.rotationAngle) * 40;
+    let xDestiny = this.coorX + Math.cos(this.rotationAngle) * 20;
+    let yDestiny = this.coorY + Math.sin(this.rotationAngle) * 20;
 
     this.ctx.beginPath();
     this.ctx.moveTo(this.coorX, this.coorY);
