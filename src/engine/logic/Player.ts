@@ -1,12 +1,18 @@
 import { CanvasManager } from "./CanvasManager";
 import { EsceneManager } from "./EsceneManager";
 import { Ray } from "./Ray";
+import { Render } from '../Render/Render';
 
 export class Player {
-  private ctx: CanvasRenderingContext2D = new CanvasManager().getContext();
+  private canvas: CanvasManager = new CanvasManager();
+  private ctx: CanvasRenderingContext2D = this.canvas.getContext();
   private escene: EsceneManager;
+  private render: Render;
 
-  private ray: Ray;
+  private raysNumber!: number;
+  private rays: Ray[] = [];
+
+  private FOV: number;
 
   private colorPlayer: string = "#7D07F2";
 
@@ -20,18 +26,34 @@ export class Player {
   private moveSpeed: number = 1.5; // Pixels
   private turnSpeed: number = 2.5 * (Math.PI / 180); // Degree
 
-  constructor(escene: EsceneManager, x: number, y: number) {
+  constructor(escene: EsceneManager, x: number, y: number, fov: number) {
     this.escene = escene;
+    this.render = new Render(fov);
     this.coorX = x;
     this.coorY = y;
 
-    this.ray = new Ray(
-      this.escene,
-      this.coorX,
-      this.coorY,
-      this.rotationAngle,
-      0
-    );
+    // Rays
+    this.raysNumber = this.canvas.getCanvasWidth();
+
+    // Calculate rays degrees
+    this.FOV = fov;
+
+    const halfFOV = this.FOV / 2;
+    let angleIncrement = this.degreeToRadian(this.FOV / this.raysNumber);
+    let initAngle = this.degreeToRadian(this.rotationAngle - halfFOV);
+    let rayAngle = initAngle;
+
+    for (let index = 0; index < this.raysNumber; index++) {
+      this.rays[index] = new Ray(
+        escene,
+        this.coorX,
+        this.coorY,
+        this.rotationAngle,
+        rayAngle,
+        index
+      );
+      rayAngle += angleIncrement;
+    }
   }
 
   up(): void {
@@ -66,6 +88,11 @@ export class Player {
     return angle;
   }
 
+  degreeToRadian(angle: number): number {
+    angle *= Math.PI / 180;
+    return angle;
+  }
+
   collision(x: number, y: number): boolean {
     let collide: boolean = false;
 
@@ -94,13 +121,20 @@ export class Player {
     this.rotationAngle += this.turn * this.turnSpeed;
     this.rotationAngle = this.angleNormalization(this.rotationAngle);
 
-    this.ray.setAngle(this.rotationAngle);
-    this.ray.setCoors(this.coorX, this.coorY);
+    // Ray update
+    for (let index = 0; index < this.raysNumber; index++) {
+      this.rays[index].setAngle(this.rotationAngle);
+      this.rays[index].setCoors(this.coorX, this.coorY);
+    }
   }
 
   draw(): void {
     this.update();
-    this.ray.draw();
+
+    for (let index = 0; index < this.raysNumber; index++) {
+      this.render.renderWall(this.rays[index]);
+      this.rays[index].draw();
+    }
 
     // Draw Player
     this.ctx.fillStyle = this.colorPlayer;

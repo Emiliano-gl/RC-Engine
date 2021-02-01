@@ -1,5 +1,6 @@
 import { CanvasManager } from "./CanvasManager";
 import { EsceneManager } from "./EsceneManager";
+import { RenderCanvasManager } from "../Render/RenderCanvasManager";
 
 export class Ray {
   private canvas: CanvasManager = new CanvasManager();
@@ -23,26 +24,30 @@ export class Ray {
   private wallHitXVertical: number = 0;
   private wallHitYVertical: number = 0;
 
-  private playerAngle: number;
+  private playerAngle!: number;
+  private rayAngle: number;
   private increment: number;
 
   private down!: boolean;
   private left!: boolean;
 
-  private column?: number;
+  private column: number;
+  private distance: number = 0;
+
+  private FOV: number = 60;
 
   constructor(
     escene: EsceneManager,
     x: number,
     y: number,
-    playerAngle: number,
+    rayAngle: number,
     increment: number,
-    column?: number
+    column: number
   ) {
     this.escene = escene;
     this.coorX = x;
     this.coorY = y;
-    this.playerAngle = playerAngle;
+    this.rayAngle = rayAngle;
     this.increment = increment;
     this.column = column;
 
@@ -58,7 +63,8 @@ export class Ray {
   }
 
   setAngle(angle: number): void {
-    this.playerAngle = this.angleNormalization(angle + this.increment);
+    this.playerAngle = angle;
+    this.rayAngle = this.angleNormalization(angle + this.increment);
   }
 
   setCoors(x: number, y: number): void {
@@ -85,9 +91,9 @@ export class Ray {
     this.down = false;
     this.left = false;
 
-    if (this.playerAngle > 0 && this.playerAngle < Math.PI) this.down = true;
+    if (this.rayAngle > 0 && this.rayAngle < Math.PI) this.down = true;
 
-    if (this.playerAngle > Math.PI / 2 && this.playerAngle < (3 * Math.PI) / 2)
+    if (this.rayAngle > Math.PI / 2 && this.rayAngle < (3 * Math.PI) / 2)
       this.left = true;
 
     // ------------------------------------------------------------
@@ -106,12 +112,12 @@ export class Ray {
     if (this.down) this.yIntercept += tileSize;
 
     let adjacent: number =
-      (this.yIntercept - this.coorY) / Math.tan(this.playerAngle);
+      (this.yIntercept - this.coorY) / Math.tan(this.rayAngle);
     this.xIntercept = this.coorX + adjacent;
 
     // Calculate step distance
     this.yStep = tileSize;
-    this.xStep = this.yStep / Math.tan(this.playerAngle);
+    this.xStep = this.yStep / Math.tan(this.rayAngle);
 
     // If the player look up, y is reversed
     if (!this.down) this.yStep *= -1;
@@ -158,7 +164,7 @@ export class Ray {
     if (!this.left) this.xIntercept += tileSize;
 
     // The adjacent leg is added
-    let opposite = (this.xIntercept - this.coorX) * Math.tan(this.playerAngle);
+    let opposite = (this.xIntercept - this.coorX) * Math.tan(this.rayAngle);
     this.yIntercept = this.coorY + opposite;
 
     // Calculate step distance
@@ -167,7 +173,7 @@ export class Ray {
     // If the player look left, y is reversed
     if (this.left) this.xStep *= -1;
 
-    this.yStep = tileSize * Math.tan(this.playerAngle);
+    this.yStep = tileSize * Math.tan(this.rayAngle);
 
     // Check if y step is correct
     if ((!this.down && this.yStep > 0) || (this.down && this.yStep < 0))
@@ -226,10 +232,23 @@ export class Ray {
     if (horizontalDistance < verticalDistance) {
       this.wallHitX = this.wallHitXHorizontal;
       this.wallHitY = this.wallHitYHorizontal;
+      this.distance = horizontalDistance;
     } else {
       this.wallHitX = this.wallHitXVertical;
       this.wallHitY = this.wallHitYVertical;
+      this.distance = verticalDistance;
     }
+
+    // Fix fish eye
+    this.distance *= Math.cos(this.playerAngle - this.rayAngle);
+  }
+
+  getDistance(): number {
+    return this.distance;
+  }
+
+  getColumn(): number {
+    return this.column;
   }
 
   draw(): void {
@@ -242,7 +261,7 @@ export class Ray {
     this.ctx.beginPath();
     this.ctx.moveTo(this.coorX, this.coorY);
     this.ctx.lineTo(xDestiny, yDestiny);
-    this.ctx.strokeStyle = "#40FF96";
+    this.ctx.strokeStyle = "#40FCFF";
     this.ctx.stroke();
   }
 }
